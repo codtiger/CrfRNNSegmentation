@@ -1,0 +1,23 @@
+#pyc files
+*.pyc
+
+#any dll or library
+
+*.so
+*.dll
+
+#output files
+*.o
+
+#idea and pycache folders
+.idea
+__pycache__
+
+# weights(they should be downloaded)
+
+*.npy
+*.h5
+
+#some specific files
+testutils.py
+util.py
