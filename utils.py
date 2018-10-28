@@ -12,7 +12,7 @@ class VggUtils:
         self.IMAGENET_MEANS = np.array([123.68, 116.779, 103.939], dtype=np.float32)  # RGB mean values
 
         if os.path.isfile(path):
-            self.weights_dict = np.load(path).item()
+            self.weights_dict = np.load(path, encoding='latin1').item()
         else:
             logging.error('The path specified does not exist:{}'.format(path))
 
@@ -66,16 +66,17 @@ class VggUtils:
         """
         new_imgs = []
         new_dim = len(imgs) == 1
+
         for img in imgs:
             assert img.ndim == 3
             img_h, img_w, img_c = img.shape
             assert img_c == 3
             if img_h > 500 and img_w > 500:
-                print ("Image is larger than 500x500,reduce the size")
+                print("Image is larger than 500x500,reduce the size")
             padding_h = 500-img_h
-            ph_before, ph_after = padding_h/2, padding_h-padding_h/2
+            ph_before, ph_after = padding_h//2, padding_h-padding_h//2
             padding_w = 500-img_w
-            pw_before, pw_after = padding_w/2, padding_w-padding_w/2
+            pw_before, pw_after = padding_w//2, padding_w-padding_w//2
             new_image = np.pad(img, ((ph_before, ph_after), (pw_before, pw_after), (0, 0)),
                                mode='constant', constant_values=0)
              # TODO: check if it is np.uint8 or float32
@@ -95,21 +96,15 @@ class PascalUtils:
             raise OSError('the path given doesn\'t exist: {} '.format(path))
         dirs = os.listdir(path)
         self.main_path = path
-        if not 'JPEGIMAGES' and 'SegmentationClass' in dirs:
-            print ('this is not a correct path')
+        if not 'JPEGImages' and 'SegmentationClass' in dirs:
+            print('this is not a correct path')
         else:
-            self.image_path = os.path.join(self.main_path, 'JPEGIMAGES')
+            self.image_path = os.path.join(self.main_path, 'JPEGImages')
             self.label_path = os.path.join(self.main_path, 'SegmentationClass')
             self.label_image_addr = os.listdir(self.label_path)
         self.train_list = []
         self.val_list = []
         self.test_list = []
-        self.train_images = []
-        self.val_images = []
-        self.test_images = []
-        self.label_train = []
-        self.label_valid = []
-        self.label_test = []
         self.PALETTE = np.array([[0, 0, 0],
                                  [128, 0, 0],
                                  [0, 128, 0],
@@ -157,48 +152,86 @@ class PascalUtils:
         # self.test_list = [i for i in self.image_path if i not in self.train_list and i not in self.val_list]
         self.test_list = []
 
-    def load_images(self):
+    def load_images(self, indices=None, train_valid='train'):
+
+        train_images, val_images, test_images = [], [], []
         if not self.train_list:
             for i in os.listdir(os.path.join(self.image_path, self.label_image_addr)):
                 img = np.array(Image.open(i)).astype(np.float32)
                 # transform pictures to BGR then add
-                self.train_images.append(img[:, :, ::-1])
-            return self.train_images, [], []
-        for i in self.train_list:
+                train_images.append(img[:, :, ::-1])
+            return train_images
 
-            img = np.array(Image.open(i)).astype(np.float32)
-            # transform pictures to BGR then add
-            self.train_images.append(img[:, :, ::-1])
-        for i in self.val_list:
-            img = np.array(Image.open(i)).astype(np.float32)
-            # transform pictures to BGR then add
-            self.val_images.append(img[:, :, ::-1])
-        for i in self.test_list:
-            img = np.array(Image.open(i)).astype(np.float32)
-            # transform pictures to BGR then add
-            self.test_images.append(img[:, :, ::-1])
-        return self.train_images, self.val_images, self.test_images
+        if train_valid == 'train':
+            if indices is not None:
+                train_indices = indices
+            else:
+                train_indices = list(np.arange(len(self.train_list)))
 
-    def load_labels(self):
-        if not self.train_list:
-            for i in os.listdir(os.path.join(self.label_path, self.label_image_addr)):
+            for i in train_indices:
+                img = np.array(Image.open(self.train_list[i])).astype(np.float32)
+                # transform pictures to BGR then add
+                train_images.append(img[:, :, ::-1])
+            return train_images
+
+        elif train_valid == 'valid':
+
+            if indices is not None:
+                valid_indices = indices
+            else:
+                valid_indices = list(np.arange(len(self.val_list)))
+
+            for i in valid_indices:
+                img = np.array(Image.open(self.val_list[i])).astype(np.float32)
+                # transform pictures to BGR then add
+                val_images.append(img[:, :, ::-1])
+            return val_images
+        else:
+            for i in self.test_list:
                 img = np.array(Image.open(i)).astype(np.float32)
                 # transform pictures to BGR then add
-                self.train_images.append(img[:, :, ::-1])
-            return self.train_images, [], []
-        for i in self.train_list:
-            label = np.array(Image.open(i)).astype(np.float32)
-            # transform pictures to BGR then add
-            self.label_train.append(label[:, :, ::-1])
-        for i in self.val_list:
-            label = np.array(Image.open(i)).astype(np.float32)
-            # transform pictures to BGR then add
-            self.label_valid.append(label[:, :, ::-1])
-        for i in self.test_list:
-            label = np.array(Image.open(i)).astype(np.float32)
-            # transform pictures to BGR then add
-            self.label_test.append(label[:, :, ::-1])
-        return self.label_train, self.label_valid, self.label_test
+                test_images.append(img[:, :, ::-1])
+            return test_images
+
+    def load_labels(self, indices=None, train_valid='train'):
+
+        train_labels, val_labels, test_labels = [], [], []
+        if not self.train_list:
+            for i in os.listdir(os.path.join(self.image_path, self.label_image_addr)):
+                img = np.array(Image.open(i)).astype(np.float32)
+                # transform pictures to BGR then add
+                train_labels.append(img[:, :, ::-1])
+            return train_labels
+
+        if train_valid == 'train':
+            if indices is not None:
+                train_indices = indices
+            else:
+                train_indices = list(np.arange(len(self.train_list)))
+            for i in train_indices:
+                img = np.array(Image.open(self.train_list[i])).astype(np.float32)
+                # transform pictures to BGR then add
+                train_labels.append(img[:, :, ::-1])
+            return train_labels
+
+        elif train_valid == 'valid':
+
+            if indices is not None:
+                valid_indices = indices
+            else:
+                valid_indices = list(np.arange(len(self.val_list)))
+
+            for i in valid_indices:
+                img = np.array(Image.open(self.val_list[i])).astype(np.float32)
+                # transform pictures to BGR then add
+                val_labels.append(img[:, :, ::-1])
+            return val_labels
+        else:
+            for i in self.test_list:
+                img = np.array(Image.open(i)).astype(np.float32)
+                # transform pictures to BGR then add
+                test_labels.append(img[:, :, ::-1])
+            return test_labels
 
     def probs_to_label(self, probs, height, width):
 
@@ -208,10 +241,18 @@ class PascalUtils:
         # print (np.array(label_image))
         label_image = np.zeros((height, width, 3), dtype=np.uint8)
         for i in range(height * width):
-            label_image[i / height, i % height, :] = self.PALETTE[labels[i / height, i % height]]
+            label_image[i // height, i % height, :] = self.PALETTE[labels[i // height, i % height]]
         # label_image[:, :, :] = self.PALETTE[labels.ravel()].reshape(height, width, 3)
 
         return label_image
+
+    def get_size(self, train_valid):
+
+        if train_valid == 'train':
+            return len(self.train_list)
+
+        else:
+            return len(self.val_list)
 
     def label_to_probs(self, labels, num_classes=21, save_to_path=None):
         """
@@ -226,7 +267,7 @@ class PascalUtils:
         one_hot_list = []
         for label in labels:
             pad_x, pad_y = 500-label.shape[0], 500-label.shape[1]
-            label = np.pad(label, ((pad_x/2, pad_x-pad_x/2), (pad_y/2, pad_y - pad_y/2), (0, 0)),
+            label = np.pad(label, ((pad_x//2, pad_x-pad_x//2), (pad_y//2, pad_y - pad_y//2), (0, 0)),
                            mode='constant', constant_values=0)
             label = label[:, :, ::-1]
             shape1, shape2 = label.shape[0], label.shape[1]
@@ -235,7 +276,6 @@ class PascalUtils:
             replica = new_label[:, np.newaxis].repeat(num_classes, axis=1)
             one_hot = np.all(replica == self.PALETTE[:num_classes], axis=2).reshape(label.shape[0], label.shape[1], -1)
             one_hot_list.append(one_hot)
-
         if save_to_path is not None:
             np.save(save_to_path, np.packbits(np.array(one_hot_list)))
         return np.array(one_hot_list)

@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 from UpsampleLayer import *
+from DataGenerator import DataGenerator
 
 
 class FCN8:
@@ -20,7 +21,7 @@ class FCN8:
         self.vgg = utils.VggUtils(vgg_path)
         self.pascal = utils.PascalUtils(pascal_path)
         self.model = None
-        self.learned_fc8_path = '/Users/apple/Downloads/crfasrnn_keras/crfrnn_keras_model.h5'
+        self.learned_fc8_path = 'crfrnn_keras_model.h5'
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
@@ -72,7 +73,7 @@ class FCN8:
         # score2 = self.upsample(x, 'score2', 4, 32, 21, 2, False)
         score2 = UpSampleLayer(4, 32, 21, 2, name='score2', trainable=True)(x)
 
-        score_pool4 = Conv2D(21, (1, 1), name='score-pool4', trainable=False)(pool4)
+        score_pool4 = Conv2D(21, (1, 1), name='score-pool4', trainable=True)(pool4)
         # score_pool4c = Cropping2D((5, 5))(score_pool4)
         score_fused = Add()([score2, score_pool4])
         # score4 = self.upsample(score_fused, 'score4', 4, 63, 21, 2, False)
@@ -82,7 +83,7 @@ class FCN8:
         # final_upsample = self.upsample(score_final, 'finalupsample', 16, width, 21, 8, False)
         final_upsample = UpSampleLayer(16, width, 21, 8, name='final-score', trainable=True)(score_final)
         final_soft = Softmax(axis=-1)(final_upsample)
-        # final_upsample = Softmax(axis=-1)(final_upsample)
+
         self.model = Model(input_img, final_soft, name='FCN8_vgg')
 
         return final_upsample
@@ -125,8 +126,8 @@ class FCN8:
             sys.exit(1)
         return self.model.predict(img, verbose=False)
 
-    def get_predict_img(self, img):
-        prediction = self.predict(img).squeeze()
+    def get_predict_img(self, prediction):
+        prediction = prediction.squeeze()
         # return self.vgg.get_label_image(prediction, prediction.shape[0], prediction.shape[1])
         return self.pascal.probs_to_label(prediction, prediction.shape[0], prediction.shape[1])
 
@@ -147,7 +148,7 @@ class FCN8:
             weights, biases = self.__get_trained_weights(layer_name)
         elif 'score-pool' in layer_name:
             if self.model.get_layer(layer_name).trainable:
-                logging.info ('use trained weights')
+                logging.info('use trained weights')
                 weights, biases = self.__get_trained_weights(layer_name)
             else:
                 # shape = self.model.get_layer(layer_name).weights[0].get_shape().as_list()
@@ -169,49 +170,34 @@ class FCN8:
     def __get_trained_weights(self, name):
         import h5py
         h5_file = h5py.File(self.learned_fc8_path)
-        weights, biases = h5_file[name][name].values()[1].value, h5_file[name][name].values()[0].value
+        weights, biases = list(h5_file[name][name].values())[1].value, list(h5_file[name][name].values())[0].value
         return weights, biases
 
     def get_result_prob(self):
         pass
 
     def train(self, batch_size, epochs, shuffle, learning_rate, momentum, decay, data_split_path=None):
-        if os.path.exists('train_data.npy'):
-            train_data = np.load('train_data.npy')
-
-        if os.path.exists('valid_data.npy'):
-            valid_data = np.load('valid_data.npy')
-        else:
-            if data_split_path is not None:
-                self.pascal.load_split_point(data_split_path)
-
-            train_data, valid_data, test_data = self.pascal.load_images()
-            train_data = self.vgg.preprocess_image(train_data, 'train_data.npy')
-            valid_data = np.load('valid_data.npy')
-            valid_data = self.vgg.preprocess_image(valid_data, 'valid_data.npy')
-            # test_data = self.vgg.preprocess_image(test_data, 'test_data.npy')
-        logging.info("input data ready,now going for labels")
-        if os.path.exists('train_label.npy'):
-            self.logger.info('train labels loaded')
-            train_label = np.unpackbits(np.load('train_label.npy'))
-            train_label = train_label[:(964*500*500*21)].reshape(964, 500, 500, 21)
-        if os.path.exists('valid_label.npy'):
-            self.logger.info('valid labels loaded')
-            valid_label = np.unpackbits(np.load('valid_label.npy'))
-            valid_label = valid_label[:(964*500 * 500 * 21)].reshape(964, 500, 500, 21)
-        else:
-
+        if data_split_path is not None:
             self.pascal.load_split_point(data_split_path)
-            train_label, valid_label, test_label = self.pascal.load_labels()
-            logging.info('one hot encoding the labels ')
-            train_label = self.pascal.label_to_probs(train_label, 21, 'train_label.npy')
-            valid_label = self.pascal.label_to_probs(valid_label, 21, 'valid_label.npy')
+
+        logging.info("train data generator object getting ready")
+        train_generator = DataGenerator(batch_size=batch_size, pascal_object=self.pascal,
+                                        pre_process_func=self.vgg.preprocess_image,
+                                        one_hot_func=self.pascal.label_to_probs, num_classes=21,
+                                        train_valid='train', shuffle=shuffle)
+        logging.info("valid data generator object getting ready")
+        val_generator = DataGenerator(batch_size=10, pascal_object=self.pascal,
+                                      pre_process_func=self.vgg.preprocess_image,
+                                      one_hot_func=self.pascal.label_to_probs, num_classes=21,
+                                      train_valid='valid', shuffle=shuffle)
         if self.model is None:
             logging.error('Model is not initialized')
             sys.exit(1)
         adam = Adam(lr=learning_rate, beta_1=momentum, beta_2=0.99, decay=decay)
-        self.model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy'])
-        history = self.model.fit(x=train_data, y=train_label, batch_size=batch_size,
-                                 epochs=epochs, verbose=1, shuffle=shuffle)
+        self.model.compile(optimizer=adam, loss='mean_squared_error', metrics=['mean_squared_error'])
+        history = self.model.fit_generator(generator=train_generator, validation_data=val_generator, epochs=epochs,
+                                           use_multiprocessing=False, workers=3, max_queue_size=1)
         return history
 
+    def get_weights(self, layer_name):
+        return self.model.get_layer(layer_name).get_weights()

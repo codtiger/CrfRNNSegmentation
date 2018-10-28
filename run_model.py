@@ -1,10 +1,12 @@
+from __future__ import print_function
 from FCN8_vgg import *
 import cv2
 
 
 def main():
-    vgg_path = '/Users/apple/Downloads/vgg16.npy'
-    pascal_path = '/Users/apple/Downloads/VOCdevkit/VOC2010'
+
+    vgg_path = 'vgg16.npy'
+    pascal_path = '/home/rsn/Datasets/VOC2010'
     fcn = FCN8(vgg_path=vgg_path,
                pascal_path=pascal_path)
     fcn.prepare_model()
@@ -19,19 +21,22 @@ def main():
             continue
         elif 'softmax' in layer.name:
             continue
-        print layer.name
+        print (layer.name)
         fcn.set_weights(layer.name)
 
-    img = cv2.imread('/Users/apple/Downloads/VOCdevkit/VOC2010/JPEGImages/2009_005217.jpg')
+    img = cv2.imread('/home/rsn/Datasets/VOC2010/JPEGImages/2007_000129.jpg')
     # img = np.transpose(img, [0, 1, 2])
+    weights_before = fcn.get_weights('conv3_3')
+    history = fcn.train(5, 1, True, 1e-3, 0.99, 0.9,
+                        data_split_path='/home/rsn/Datasets/VOC2010/ImageSets/Segmentation')
+    weights_after = fcn.get_weights('conv3_3')
 
-    history = fcn.train(10, 3, True, 1e-4, 0.9, 0.98,
-                        data_split_path='/Users/apple/Downloads/VOCdevkit/VOC2010/ImageSets/Segmentation')
-
-    prediction = fcn.get_predict_img(img)
+    print(np.all(weights_after[0] == weights_before[0]))
+    prediction = fcn.predict(img)
+    prediction_img = fcn.get_predict_img(prediction)
     prediction = cv2.cvtColor(prediction, cv2.COLOR_BGR2RGB)
 
-    cv2.imshow('me', prediction)
+    cv2.imshow('me', prediction_img)
     cv2.waitKey()
 if __name__ == '__main__':
     main()
