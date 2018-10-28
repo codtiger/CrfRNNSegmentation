@@ -73,18 +73,18 @@ class FCN8:
         # score2 = self.upsample(x, 'score2', 4, 32, 21, 2, False)
         score2 = UpSampleLayer(4, 32, 21, 2, name='score2', trainable=True)(x)
 
-        score_pool4 = Conv2D(21, (1, 1), name='score-pool4', trainable=False)(pool4)
+        score_pool4 = Conv2D(21, (1, 1), name='score-pool4', trainable=True)(pool4)
         # score_pool4c = Cropping2D((5, 5))(score_pool4)
         score_fused = Add()([score2, score_pool4])
         # score4 = self.upsample(score_fused, 'score4', 4, 63, 21, 2, False)
         score4 = UpSampleLayer(4, 63, 21, 2, name='score4', trainable=True)(score_fused)
-        score_pool3 = Conv2D(21, (1, 1), name='score-pool3', trainable=False)(pool3)
+        score_pool3 = Conv2D(21, (1, 1), name='score-pool3', trainable=True)(pool3)
         score_final = Add()([score_pool3, score4])
         # final_upsample = self.upsample(score_final, 'finalupsample', 16, width, 21, 8, False)
         final_upsample = UpSampleLayer(16, width, 21, 8, name='final-score', trainable=True)(score_final)
-        # final_soft = Softmax(axis=-1)(final_upsample)
+        final_soft = Softmax(axis=-1)(final_upsample)
 
-        self.model = Model(input_img, final_upsample, name='FCN8_vgg')
+        self.model = Model(input_img, final_soft, name='FCN8_vgg')
 
         return final_upsample
         # Fully Connected Layer as
@@ -126,8 +126,8 @@ class FCN8:
             sys.exit(1)
         return self.model.predict(img, verbose=False)
 
-    def get_predict_img(self, img):
-        prediction = self.predict(img).squeeze()
+    def get_predict_img(self, prediction):
+        prediction = prediction.squeeze()
         # return self.vgg.get_label_image(prediction, prediction.shape[0], prediction.shape[1])
         return self.pascal.probs_to_label(prediction, prediction.shape[0], prediction.shape[1])
 
@@ -148,7 +148,7 @@ class FCN8:
             weights, biases = self.__get_trained_weights(layer_name)
         elif 'score-pool' in layer_name:
             if self.model.get_layer(layer_name).trainable:
-                logging.info ('use trained weights')
+                logging.info('use trained weights')
                 weights, biases = self.__get_trained_weights(layer_name)
             else:
                 # shape = self.model.get_layer(layer_name).weights[0].get_shape().as_list()
@@ -186,7 +186,7 @@ class FCN8:
                                         one_hot_func=self.pascal.label_to_probs, num_classes=21,
                                         train_valid='train', shuffle=shuffle)
         logging.info("valid data generator object getting ready")
-        val_generator = DataGenerator(batch_size=5, pascal_object=self.pascal,
+        val_generator = DataGenerator(batch_size=10, pascal_object=self.pascal,
                                       pre_process_func=self.vgg.preprocess_image,
                                       one_hot_func=self.pascal.label_to_probs, num_classes=21,
                                       train_valid='valid', shuffle=shuffle)
@@ -194,8 +194,8 @@ class FCN8:
             logging.error('Model is not initialized')
             sys.exit(1)
         adam = Adam(lr=learning_rate, beta_1=momentum, beta_2=0.99, decay=decay)
-        self.model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy'])
-        history = self.model.fit_generator(generator=train_generator, validation_data=None, epochs=epochs,
+        self.model.compile(optimizer=adam, loss='mean_squared_error', metrics=['mean_squared_error'])
+        history = self.model.fit_generator(generator=train_generator, validation_data=val_generator, epochs=epochs,
                                            use_multiprocessing=False, workers=3, max_queue_size=1)
         return history
 
