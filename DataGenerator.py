@@ -3,9 +3,10 @@ import numpy as np
 import keras
 import gc
 
+
 class DataGenerator(keras.utils.Sequence):
 
-    def __init__(self, batch_size, pascal_object, pre_process_func, one_hot_func,num_classes, train_valid='train', shuffle=True):
+    def __init__(self, batch_size, pascal_object, pre_process_func, one_hot_func, num_classes, train_valid='train', shuffle=True):
         """
 
         :param batch_size:
