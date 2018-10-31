@@ -1,12 +1,21 @@
 from __future__ import print_function
 from FCN8_vgg import *
 import cv2
+import platform
+import os
+platform = platform.system()
+
+if platform == 'Linux':
+    pascal_path = '/home/rsn/Datasets/VOC2010'
+elif platform == 'Darwin':
+    pascal_path = '/Users/Downloads/VOCdevkit/VOC2010'
+elif platform == 'Windows':
+    pascal_path = 'E:\\VOC2010'
 
 
 def main():
 
     vgg_path = 'vgg16.npy'
-    pascal_path = '/home/rsn/Datasets/VOC2010'
     fcn = FCN8(vgg_path=vgg_path,
                pascal_path=pascal_path)
     fcn.prepare_model()
@@ -24,11 +33,11 @@ def main():
         print (layer.name)
         fcn.set_weights(layer.name)
 
-    img = cv2.imread('/home/rsn/Datasets/VOC2010/JPEGImages/2007_000129.jpg')
+    img = cv2.imread(os.path.join(pascal_path,'JPEGImages/2007_000129.jpg'))
     # img = np.transpose(img, [0, 1, 2])
     weights_before = fcn.get_weights('conv3_3')
     history = fcn.train(5, 1, True, 1e-3, 0.99, 0.9,
-                        data_split_path='/home/rsn/Datasets/VOC2010/ImageSets/Segmentation')
+                        data_split_path=os.path.join(pascal_path,'ImageSets/Segmentation'))
     weights_after = fcn.get_weights('conv3_3')
 
     print(np.all(weights_after[0] == weights_before[0]))
