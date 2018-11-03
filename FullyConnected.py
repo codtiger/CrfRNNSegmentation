@@ -22,18 +22,21 @@ class FullyConnected:
         out_fcn = self.fcn.prepare_model()
         image_dims = (500, 500, 3)
         crf_out = CrfRnn(image_dims=image_dims, num_classes=self.num_classes,
-                         theta_alpha=0.1, theta_beta=0.1, theta_gamma=1, trainable=True)(out_fcn, self.fcn.input)
+                         theta_alpha=0.1, theta_beta=0.1, theta_gamma=1, trainable=True,
+                         num_iterations=10)([out_fcn, self.fcn.model.input])
 
-        self.model = Model(input=self.fcn.input, output=crf_out)
+        self.model = Model(input=self.fcn.model.input, output=crf_out)
 
         return crf_out, self.model
 
-    def predict(self, input):
+    def predict(self, inputs):
+
+        inputs, prediction = self.fcn.predict(inputs)
 
         if self.model is None:
             logging.error('model is not prepared yet')
             sys.exit(1)
-        return self.model.predict(input)
+        return self.model.predict(inputs)
 
     def get_predict_img(self, prediction):
         return self.fcn.get_predict_img(prediction)

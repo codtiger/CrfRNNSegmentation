@@ -21,3 +21,6 @@ __pycache__
 #some specific files
 testutils.py
 util.py
+
+# stupid Mac File System gibberish
+.DS_Store

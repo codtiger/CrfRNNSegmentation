@@ -11,6 +11,7 @@ import os
 import sys
 from UpsampleLayer import *
 from DataGenerator import DataGenerator
+import keras.backend as K
 
 
 class FCN8:
@@ -21,7 +22,7 @@ class FCN8:
         self.vgg = utils.VggUtils(vgg_path)
         self.pascal = utils.PascalUtils(pascal_path)
         self.model = None
-        self.learned_fc8_path = 'crfrnn_keras_model.h5'
+        self.learned_fc8_path = '/Users/apple/Downloads/crfasrnn_keras/crfrnn_keras_model.h5'
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
@@ -124,7 +125,7 @@ class FCN8:
         if self.model is None:
             logging.error('Model is uninitialized')
             sys.exit(1)
-        return self.model.predict(img, verbose=False)
+        return img, self.model.predict(img, verbose=False)
 
     def get_predict_img(self, prediction):
         prediction = prediction.squeeze()
@@ -161,9 +162,11 @@ class FCN8:
         else:
             weights = self.vgg.get_weight(layer_name)
             biases = self.vgg.get_bias(layer_name)
+            # weights, biases = self.__get_trained_weights(layer_name)
         self.model.get_layer(layer_name).set_weights([weights, biases])
 
     def set_score_weight(self, output_shape, input_shape):
+
         bias_shape = output_shape[3]
         return np.random.randn(output_shape[0], output_shape[1], output_shape[2], output_shape[3]), np.zeros(bias_shape)
 
@@ -194,10 +197,30 @@ class FCN8:
             logging.error('Model is not initialized')
             sys.exit(1)
         adam = Adam(lr=learning_rate, beta_1=momentum, beta_2=0.99, decay=decay)
-        self.model.compile(optimizer=adam, loss='mean_squared_error', metrics=['mean_squared_error'])
+        self.model.compile(optimizer=adam, loss=self.custom_loss(self.pascal.get_label_weights()),
+                           metrics=['mean_squared_error', 'accuracy'])
         history = self.model.fit_generator(generator=train_generator, validation_data=val_generator, epochs=epochs,
                                            use_multiprocessing=False, workers=3, max_queue_size=1)
         return history
 
     def get_weights(self, layer_name):
         return self.model.get_layer(layer_name).get_weights()
+
+    def custom_loss(self, weights):
+
+        weights = K.variable(weights)
+
+        def loss(y_true, y_pred):
+
+            y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+
+            y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+
+            loss_value = - y_true * K.log(y_pred) * weights
+            final_loss = K.sum(loss_value, -1)
+
+            return final_loss
+
+        return loss
+
+

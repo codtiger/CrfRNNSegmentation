@@ -279,3 +279,9 @@ class PascalUtils:
         if save_to_path is not None:
             np.save(save_to_path, np.packbits(np.array(one_hot_list)))
         return np.array(one_hot_list)
+
+    def get_label_weights(self):
+
+        weights = np.ones(21, dtype=np.float32)
+        weights[0] /= 21
+        return weights / np.sum(weights)

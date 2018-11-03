@@ -8,6 +8,16 @@ import high_dim_filter_loader
 custom_module = high_dim_filter_loader.custom_module
 
 
+def random_uniform(size):
+
+    return np.random.uniform(0, 1, size)
+
+
+def random_normal(size):
+
+    return np.random.randn(*size)
+
+
 class CrfRnn(Layer):
 
     def __init__(self, image_dims, num_classes,
@@ -23,19 +33,19 @@ class CrfRnn(Layer):
         self.num_iterations = num_iterations
         super(CrfRnn, self).__init__(**kwargs)
 
-    @staticmethod
+
     def _comp_mat_initializer(self, input_shape):
 
-        return -1 * np.eye(input_shape, dtype=np.float32)
+        return -1 * np.eye(input_shape[0], dtype=np.float32)
 
     def build(self, input_shape):
 
         self.spatial_ker_weights = self.add_weight(name='spatial_ker_weights',
                                                    shape=(self.num_classes, self.num_classes),
-                                                   initializer=tf.random_uniform_initializer)
+                                                   initializer=random_normal)
         self.bilateral_ker_weights = self.add_weight(name='bilateral_ker_weights',
-                                                     shape=(self.num_classes,self.num_classes),
-                                                     initializer=tf.truncated_normal_initializer)
+                                                     shape=(self.num_classes, self.num_classes),
+                                                     initializer=random_normal)
         self.compatablity_matrix = self.add_weight(name='compatablity_matrix',
                                                    shape=(self.num_classes, self.num_classes),
                                                    initializer=self._comp_mat_initializer)
@@ -67,8 +77,10 @@ class CrfRnn(Layer):
             spatial_out = spatial_out / spatial_norm_values
             bilateral_out = bilateral_out / bilateral_norm_values
 
-            message_passing = tf.add(tf.matmul(self.spatial_ker_weights, spatial_out),
-                                     tf.matmul(self.bilateral_ker_weights, bilateral_out))
+            message_passing = tf.add(tf.matmul(self.spatial_ker_weights,
+                                               tf.reshape(spatial_out, (spatial_out.shape[0],-1))),
+                                     tf.matmul(self.bilateral_ker_weights,
+                                               tf.reshape(spatial_out, (spatial_out.shape[0],-1))))
 
             pairwise = tf.matmul(self.compatablity_matrix, message_passing)
 
@@ -78,7 +90,7 @@ class CrfRnn(Layer):
 
         # TODO:maybe add a softmax layer after this for future optimization
 
-        return tf.tranpose(tf.reshape(q_values, (1, c, h, w)), (0, 2, 3, 1))
+        return tf.transpose(tf.reshape(q_values, (1, c, h, w)), (0, 3, 2, 1))
 
     def compute_output_shape(self, input_shape):
 
