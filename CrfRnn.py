@@ -78,9 +78,9 @@ class CrfRnn(Layer):
             bilateral_out = bilateral_out / bilateral_norm_values
 
             message_passing = tf.add(tf.matmul(self.spatial_ker_weights,
-                                               tf.reshape(spatial_out, (spatial_out.shape[0],-1))),
+                                               tf.reshape(spatial_out, (spatial_out.shape[0], -1))),
                                      tf.matmul(self.bilateral_ker_weights,
-                                               tf.reshape(spatial_out, (spatial_out.shape[0],-1))))
+                                               tf.reshape(spatial_out, (spatial_out.shape[0], -1))))
 
             pairwise = tf.matmul(self.compatablity_matrix, message_passing)
 

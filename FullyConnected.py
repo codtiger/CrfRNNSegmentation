@@ -19,7 +19,11 @@ class FullyConnected:
 
     def prepare_model(self):
 
-        out_fcn = self.fcn.prepare_model()
+        height, width = 500, 500
+        input_img = Input((height, width, 3))
+
+        # out_fcn = self.fcn.prepare_model()
+        out_fcn = self.fcn.predict(input_img)
         image_dims = (500, 500, 3)
         crf_out = CrfRnn(image_dims=image_dims, num_classes=self.num_classes,
                          theta_alpha=0.1, theta_beta=0.1, theta_gamma=1, trainable=True,

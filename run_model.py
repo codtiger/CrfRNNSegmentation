@@ -21,7 +21,7 @@ def main():
     fcn = FCN8(vgg_path=vgg_path,
                pascal_path=pascal_path)
     fcn.prepare_model()
-    # full_model = FullyConnected(fcn, 21)
+
     # full_model.prepare_model()
     for layer in fcn.model.layers:
         if 'input' in layer.name:
@@ -34,7 +34,7 @@ def main():
             continue
         elif 'softmax' in layer.name:
             continue
-        print (layer.name)
+        print(layer.name)
         fcn.set_weights(layer.name)
 
     img = cv2.imread(os.path.join(pascal_path, 'JPEGImages/2007_000129.jpg'))
@@ -49,10 +49,14 @@ def main():
 
     prediction_img = cv2.cvtColor(prediction_img, cv2.COLOR_BGR2RGB)
 
-    # full_prediction = full_model.predict(img)
-    # full_prediction_img = full_model.get_predict_img(full_prediction)
+    full_model = FullyConnected(fcn, 21)
 
-    # full_prediction_img = cv2.cvtColor(full_prediction_img, cv2.COLOR_BGR2RGB)
+    history = full_model.train(5, 1, True, 1e-3, 0.99, 0.9,
+                               data_split_path=os.path.join(pascal_path, 'ImageSets/Segmentation'))
+    full_prediction = full_model.predict(img)
+    full_prediction_img = full_model.get_predict_img(full_prediction)
+
+    full_prediction_img = cv2.cvtColor(full_prediction_img, cv2.COLOR_BGR2RGB)
 
     cv2.imshow('fcn-8', prediction_img)
 
