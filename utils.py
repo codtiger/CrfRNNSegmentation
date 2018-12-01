@@ -283,5 +283,5 @@ class PascalUtils:
     def get_label_weights(self):
 
         weights = np.ones(21, dtype=np.float32)
-        weights[0] /= 21
+        weights[0] /= 40
         return weights / np.sum(weights)

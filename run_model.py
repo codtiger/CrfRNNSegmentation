@@ -17,13 +17,36 @@ elif platform == 'Windows':
 
 
 def main():
+    # fcn-8
+    # fcn = FCN8(vgg_path=vgg_path,
+    #            pascal_path=pascal_path)
+    # fcn.prepare_model()
+    #
+    # for layer in fcn.model.layers:
+    #     if 'input' in layer.name:
+    #         continue
+    #     elif 'pool' in layer.name and len(layer.name) == 5:
+    #         continue
+    #     elif 'dropout' in layer.name:
+    #         continue
+    #     elif 'add' in layer.name:
+    #         continue
+    #     elif 'softmax' in layer.name:
+    #         continue
+    #     print(layer.name)
+    #     fcn.set_weights(layer.name)
 
-    fcn = FCN8(vgg_path=vgg_path,
-               pascal_path=pascal_path)
-    fcn.prepare_model()
+    img = cv2.imread(os.path.join(pascal_path, 'JPEGImages/2007_000129.jpg'))
+    # history = fcn.train(5, 1, True, 1e-3, 0.99, 0.9,
+    #                     data_split_path=os.path.join(pascal_path, 'ImageSets/Segmentation'))
+    # _, prediction = fcn.predict(img)
+    # prediction_img = fcn.get_predict_img(prediction)
 
-    # full_model.prepare_model()
-    for layer in fcn.model.layers:
+    # prediction_img = cv2.cvtColor(prediction_img, cv2.COLOR_BGR2RGB)
+
+    full_model = FullyConnected(21, vgg_path, pascal_path)
+    full_model.prepare_model()
+    for layer in full_model.model.layers:
         if 'input' in layer.name:
             continue
         elif 'pool' in layer.name and len(layer.name) == 5:
@@ -34,23 +57,10 @@ def main():
             continue
         elif 'softmax' in layer.name:
             continue
+        elif 'crf_rnn' in layer.name:
+            continue
         print(layer.name)
-        fcn.set_weights(layer.name)
-
-    img = cv2.imread(os.path.join(pascal_path, 'JPEGImages/2007_000129.jpg'))
-    weights_before = fcn.get_weights('conv3_3')
-    history = fcn.train(5, 1, True, 1e-3, 0.99, 0.9,
-                        data_split_path=os.path.join(pascal_path, 'ImageSets/Segmentation'))
-    weights_after = fcn.get_weights('conv3_3')
-
-    print(np.all(weights_after[0] == weights_before[0]))
-    _, prediction = fcn.predict(img)
-    prediction_img = fcn.get_predict_img(prediction)
-
-    prediction_img = cv2.cvtColor(prediction_img, cv2.COLOR_BGR2RGB)
-
-    full_model = FullyConnected(fcn, 21)
-
+        full_model.set_weights(layer.name)
     history = full_model.train(5, 1, True, 1e-3, 0.99, 0.9,
                                data_split_path=os.path.join(pascal_path, 'ImageSets/Segmentation'))
     full_prediction = full_model.predict(img)
@@ -58,7 +68,7 @@ def main():
 
     full_prediction_img = cv2.cvtColor(full_prediction_img, cv2.COLOR_BGR2RGB)
 
-    cv2.imshow('fcn-8', prediction_img)
+    cv2.imshow('fcn-8', full_prediction_img)
 
     # cv2.imshow('full-model', full_prediction_img)
     cv2.waitKey()
