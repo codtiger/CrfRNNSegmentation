@@ -11,6 +11,7 @@ import utils
 import tensorflow as tf
 import logging
 import sys
+from metric import Metric
 from DataGenerator import DataGenerator
 
 
@@ -22,7 +23,8 @@ class FullyConnected:
         self.num_classes = num_classes
         self.model = None
         self.vgg = utils.VggUtils(vgg_path)
-        self.learned_fc8_path = '/Users/apple/Downloads/crfasrnn_keras/crfrnn_keras_model.h5'
+        self.learned_fc8_path = 'crfrnn_keras_model.h5'
+
         self.pascal = utils.PascalUtils(pascal_path)
 
     def prepare_model(self):
@@ -85,8 +87,7 @@ class FullyConnected:
         crf_out = CrfRnn(image_dims=(height, width, 3), num_classes=self.num_classes,
                          theta_alpha=0.1, theta_beta=0.1, theta_gamma=1, trainable=True,
                          num_iterations=10)([final_upsample, input_img])
-        norm_out = Softmax(axis=-1)(crf_out)
-        self.model = Model(input=input_img, output=norm_out)
+        self.model = Model(input=input_img, output=crf_out)
 
         return crf_out, self.model
 
@@ -197,8 +198,8 @@ class FullyConnected:
             logging.error('Model is not initialized')
             sys.exit(1)
         adam = Adam(lr=learning_rate, beta_1=momentum, beta_2=0.99, decay=decay)
-        self.model.compile(optimizer=adam, loss=self.custom_loss(self.pascal.get_label_weights()),
-                           metrics=['mean_squared_error', 'accuracy'])
+        self.model.compile(optimizer=adam, loss=self.dice_coef_loss,
+                           metrics=['acc'])
         history = self.model.fit_generator(generator=train_generator, validation_data=val_generator, epochs=epochs,
                                            use_multiprocessing=False, workers=3, max_queue_size=1)
         return history
@@ -216,12 +217,23 @@ class FullyConnected:
 
             y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
 
-            loss_value = - y_true * K.log(y_pred) * weights
+            loss_value = - y_true[:, :, :, 1:] * K.log(y_pred[:, :, :, 1:]) * weights[1:]
             final_loss = K.sum(loss_value, -1)
 
             return final_loss
 
         return loss
+
+    def dice_coef(self, y_true, y_pred):
+        smooth = 1.0
+        y_true_f, y_pred_f = K.flatten(y_true), K.flatten(y_pred)
+        intersect = K.sum(y_true_f * y_pred_f, axis=-1)
+        denom = K.sum(y_true_f + y_pred_f)
+
+        return K.mean((2. * intersect / (denom + smooth)))
+
+    def dice_coef_loss(self, y_true, y_pred):
+        return 1-self.dice_coef(y_true, y_pred)
 
 
 

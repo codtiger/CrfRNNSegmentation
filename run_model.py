@@ -4,6 +4,7 @@ import cv2
 import platform
 import os
 from FullyConnected import FullyConnected
+import matplotlib.pyplot as plt
 platform = platform.system()
 
 if platform == 'Linux':
@@ -61,17 +62,34 @@ def main():
             continue
         print(layer.name)
         full_model.set_weights(layer.name)
-    history = full_model.train(5, 1, True, 1e-3, 0.99, 0.9,
+    history = full_model.train(10, 5, True, 1e-6, 0.99, 0.9,
                                data_split_path=os.path.join(pascal_path, 'ImageSets/Segmentation'))
-    full_prediction = full_model.predict(img)
+    img, full_prediction = full_model.predict(img)
     full_prediction_img = full_model.get_predict_img(full_prediction)
 
     full_prediction_img = cv2.cvtColor(full_prediction_img, cv2.COLOR_BGR2RGB)
 
-    cv2.imshow('fcn-8', full_prediction_img)
+    cv2.imshow('full-model', full_prediction_img)
 
     # cv2.imshow('full-model', full_prediction_img)
     cv2.waitKey()
+    print (history.keys())
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model accuracy')
+    plt.xlabel('epochs')
+    plt.ylabel('accuracy')
+    plt.legend(['validation', 'train'], loc='upper left')
+    plt.show()
+
+    # next plot
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.legend(['validation', 'train'], loc='upper left')
+    plt.show()
 if __name__ == '__main__':
     main()
 

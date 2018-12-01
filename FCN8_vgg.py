@@ -22,7 +22,7 @@ class FCN8:
         self.vgg = utils.VggUtils(vgg_path)
         self.pascal = utils.PascalUtils(pascal_path)
         self.model = None
-        self.learned_fc8_path = '/Users/apple/Downloads/crfasrnn_keras/crfrnn_keras_model.h5'
+        self.learned_fc8_path = 'crfrnn_keras_model.h5'
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
@@ -197,7 +197,7 @@ class FCN8:
             logging.error('Model is not initialized')
             sys.exit(1)
         adam = Adam(lr=learning_rate, beta_1=momentum, beta_2=0.99, decay=decay)
-        self.model.compile(optimizer=adam, loss=self.custom_loss(self.pascal.get_label_weights()),
+        self.model.compile(optimizer=adam, loss=self.pascal.get_label_weights(),
                            metrics=['mean_squared_error', 'accuracy'])
         history = self.model.fit_generator(generator=train_generator, validation_data=val_generator, epochs=epochs,
                                            use_multiprocessing=False, workers=3, max_queue_size=1)
@@ -223,4 +223,13 @@ class FCN8:
 
         return loss
 
+    def dice_coef(self, y_true, y_pred):
+        smooth = 1.0
+        y_true_f, y_pred_f = K.flatten(y_true), K.flatten(y_pred)
+        intersect = K.sum(y_true_f * y_pred_f, axis=-1)
+        denom = K.sum(y_true_f) + K.sum(y_pred_f)
 
+        return K.mean((2. * intersect / (denom + smooth)))
+
+    def dice_coef_loss(self, y_true, y_pred):
+        return 1-self.dice_coef(y_true, y_pred)

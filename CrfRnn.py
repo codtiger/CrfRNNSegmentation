@@ -4,7 +4,7 @@ from keras.engine.topology import Layer
 import numpy as np
 import tensorflow as tf
 import high_dim_filter_loader
-
+import keras.backend as K
 custom_module = high_dim_filter_loader.custom_module
 
 
@@ -53,20 +53,23 @@ class CrfRnn(Layer):
 
     def call(self, inputs):
 
-        unaries = tf.transpose(inputs[0][0, :, :, :], perm=[2, 1, 0])
-        rgb = tf.transpose(inputs[1][0, :, :, :], perm=[2, 1, 0])
+        unaries = tf.transpose(inputs[0][:, :, :, :], perm=[0, 3, 1, 2])
+        rgb = tf.transpose(inputs[1][:, :, :, :], perm=[0, 3, 1, 2])
 
         c, h, w = self.num_classes, self.image_dims[0], self.image_dims[1]
         all_ones = np.ones((c, h, w), dtype=np.float32)
 
         spatial_norm_values = custom_module.high_dim_filter(all_ones, rgb, bilateral=False,
                                                             theta_gamma=self.theta_gamma)
+
         bilateral_norm_values = custom_module.high_dim_filter(all_ones, rgb, bilateral=True,
                                                               theta_alpha=self.theta_alpha,
                                                               theta_beta=self.theta_beta)
         q_values = unaries
 
+
         for i in range(self.num_iterations):
+            batch_size = K.shape(inputs[0])[0]
             normalized = tf.nn.softmax(q_values, axis=0)
 
             spatial_out = custom_module.high_dim_filter(normalized, rgb, bilateral=False,
@@ -74,23 +77,26 @@ class CrfRnn(Layer):
             bilateral_out = custom_module.high_dim_filter(normalized, rgb, bilateral=True,
                                                           theta_alpha=self.theta_alpha,
                                                           theta_beta=self.theta_beta)
-            spatial_out = spatial_out / spatial_norm_values
+
+            spatial_out = tf.div(spatial_out, spatial_norm_values)
             bilateral_out = bilateral_out / bilateral_norm_values
 
             message_passing = tf.add(tf.matmul(self.spatial_ker_weights,
-                                               tf.reshape(spatial_out, (spatial_out.shape[0], -1))),
+                                               tf.reshape(spatial_out, [self.num_classes,
+                                                                        -1])),
                                      tf.matmul(self.bilateral_ker_weights,
-                                               tf.reshape(spatial_out, (spatial_out.shape[0], -1))))
-
+                                               tf.reshape(spatial_out, (self.num_classes
+                                                                        , -1))))
+            print (message_passing.shape)
             pairwise = tf.matmul(self.compatablity_matrix, message_passing)
 
-            pairwise = tf.reshape(pairwise, (c, h, w))
+            pairwise = tf.reshape(pairwise, (batch_size, c, h, w))
 
             q_values = unaries - pairwise
 
         # TODO:maybe add a softmax layer after this for future optimization
 
-        return tf.transpose(tf.reshape(q_values, (1, c, h, w)), (0, 3, 2, 1))
+        return tf.transpose(tf.reshape(q_values, (batch_size, c, h, w)), (0, 3, 2, 1))
 
     def compute_output_shape(self, input_shape):
 
