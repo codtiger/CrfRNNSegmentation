@@ -1,17 +1,17 @@
 
 from __future__ import print_function
-from keras.models import Model
-from keras.layers import Conv2D, MaxPooling2D, Input, ZeroPadding2D, \
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Input, ZeroPadding2D, \
     Dropout, Conv2DTranspose, Cropping2D, Add , Lambda , Softmax
 import numpy as np
-from keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam
 import utils
 import logging
 import os
 import sys
 from UpsampleLayer import *
 from DataGenerator import DataGenerator
-import keras.backend as K
+import tensorflow.keras.backend as K
 
 
 class FCN8:

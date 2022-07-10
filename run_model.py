@@ -1,20 +1,33 @@
 from __future__ import print_function
 from FCN8_vgg import *
 import cv2
+
+import argparse
 import platform
 import os
-from FullyConnected import FullyConnected
-import matplotlib.pyplot as plt
-platform = platform.system()
 
-if platform == 'Linux':
-    pascal_path = '/home/rsn/Datasets/VOC2010'
-    vgg_path = 'vgg16.npy'
-elif platform == 'Darwin':
-    pascal_path = '/Users/apple/Downloads/VOCdevkit/VOC2010'
-    vgg_path = '/Users/apple/Downloads/vgg16.npy'
-elif platform == 'Windows':
-    pascal_path = 'E:\\VOC2010'
+from FullyConnected import FullyConnected
+
+import matplotlib.pyplot as plt
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_path', default='Datasets/VOCdevkit/VOC2010',
+                   help='Path to the dataset')
+args = parser.parse_args()
+
+if not args['data_path']:
+    print ("No dataset path specified.")
+    sys.exit(1)
+# platform = platform.system()
+
+# if platform == 'Linux':
+#     pascal_path = '/home/rsn/Datasets/VOC2010'
+#     vgg_path = 'vgg16.npy'
+# elif platform == 'Darwin':
+#     pascal_path = '/Users/apple/Downloads/VOCdevkit/VOC2010'
+#     vgg_path = '/Users/apple/Downloads/vgg16.npy'
+# elif platform == 'Windows':
+#     pascal_path = 'E:\\VOC2010'
 
 
 def main():

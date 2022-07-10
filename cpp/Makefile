@@ -11,17 +11,18 @@
 #  -----------------------------------------------------------------------------------------------------------------------
 
 # Define the compiler
-CC := g++
+# if tensorflow sourced are compiled with 
+CC := clang
 
 # Read Tensorflow paths
-TF_INC := $(shell python -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
-TF_LIB := $(shell python -c 'import tensorflow as tf; print(tf.sysconfig.get_lib())')
+TF_INC := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))')
+TF_LIB := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))')
 
 # Is the Tensorflow version >= 1.4?
 TF_VERSION_GTE_1_4 := $(shell expr `python -c 'import tensorflow as tf; print(tf.__version__)' | cut -f1,2 -d.` \>= 1.4)
 
 # Flags required for all cases
-CFLAGS := -std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0 -shared -fPIC -I$(TF_INC) -O2 
+CFLAGS := -std=c++14 -D_GLIBCXX_USE_CXX11_ABI=0 -shared -fPIC ${TF_INC} -O2 
 
 # Set a special flag if we are on macOS
 ifeq ($(shell uname -s), Darwin)
@@ -30,8 +31,8 @@ endif
 
 # Set some more flags if the Tensorflow version is >= 1.4
 ifeq ($(TF_VERSION_GTE_1_4), 1)
-    CFLAGS += -I$(TF_INC)/external/nsync/public
-	LDFLAGS := -L$(TF_LIB) -ltensorflow_framework
+    # CFLAGS += ${TF_INC}/external/nsync/public
+	LDFLAGS := ${TF_LIB} 
 else
 	LDFLAGS :=
 endif

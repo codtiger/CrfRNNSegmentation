@@ -24,3 +24,6 @@ util.py
 
 # stupid Mac File System gibberish
 .DS_Store
+
+# vscode
+.vscode

@@ -1,6 +1,6 @@
 from __future__ import print_function
 import numpy as np
-import keras
+from tensorflow import keras
 import gc
 
 

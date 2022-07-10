@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from keras.engine.topology import Layer
+from tensorflow.keras.layers import Layer
 
 
 class UpSampleLayer(Layer):

@@ -1,8 +1,8 @@
 import numpy as np
-from keras.models import Model
-from keras.layers import Softmax, Conv2D, Input
-from keras.optimizers import Adam, RMSprop
-import keras.backend as K
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Softmax, Conv2D, Input
+from tensorflow.keras.optimizers import Adam, RMSprop
+import tensorflow.keras.backend as K
 from CrfRnn import CrfRnn
 from UpsampleLayer import UpSampleLayer
 from keras.layers import Conv2D, MaxPooling2D, Input, ZeroPadding2D, \
